@@ -12,10 +12,11 @@ const options = {
     },
   },
   contracts: [SimpleStorage, ComplexStorage, TutorialToken, BicycleOwnership],
+  syncAlways: true,
   events: {
     SimpleStorage: ['StorageSet'],
   },
-  polls: { blocks: 3000, accounts: 1000 },
+  polls: { blocks: 3000 },
 };
 
 export default options;

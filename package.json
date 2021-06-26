@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "truffle-config.js",
+  "prettier": "prettier --write 'contracts/**/*.sol'",
   "directories": {
     "test": "test"
   },
