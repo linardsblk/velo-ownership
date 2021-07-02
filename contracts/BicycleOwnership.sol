@@ -4,20 +4,25 @@ pragma experimental ABIEncoderV2;
 
 contract BicycleOwnership  {
     address public creatorAdmin;
-    enum Status {Pending, Approved, Rejected}
+    enum Status {Pending, Approved, Rejected, Transfering}
 
     // Struct to store all bicycle related details
     struct BicycleDetail {
         Status status;
-        address currOwner;
+        address payable currOwner;
+        bool stolen;
+    }
+
+    struct OwnerChange {
+        address payable newOwner;
+        uint price;
     }
 
     uint public approvedBicycleCount;
     uint public pendingBicycleCount;
 
     mapping(uint => BicycleDetail) public bicycles; // Stores all bicycles bicycleId -> bicycle Detail
-    mapping(uint => address) public bicycleOwnerChange; // Keeps track of bicycle owner bicycleId -> Owner Address
-    mapping(address => mapping(uint => bool)) public userBicycles; // Keeps track of all user's bicycles user address -> mapping of bicycleId to bool
+    mapping(uint => OwnerChange) public bicycleOwnerChange; // Keeps track of bicycle owner bicycleId -> Owner Address
 
     // Modifier to ensure only the bicycle owner access
     modifier onlyOwner(uint _bicycleId) {
@@ -41,20 +46,19 @@ contract BicycleOwnership  {
         creatorAdmin = msg.sender;
     }
 
-    event CreateBicycle(uint _bicycleId, address _owner);
+    event BicyclesRelated(uint _bicycleId, address payable _address);
 
     /// @dev Function to create bicycle
     /// @param _bicycleId Identifier for bicycle
     /// @param _owner Owner address for bicycle
     function createBicycle(
         uint _bicycleId,
-        address _owner
+        address payable _owner
     ) external onlyAdmin returns (bool) {
-        bicycles[_bicycleId] = BicycleDetail(Status.Pending, _owner);
-        userBicycles[_owner][_bicycleId] = true;
+        bicycles[_bicycleId] = BicycleDetail(Status.Pending, _owner, false);
         pendingBicycleCount++;
 
-        emit CreateBicycle(_bicycleId, _owner);
+        emit BicyclesRelated(_bicycleId, _owner);
         return true;
     }
 
@@ -87,109 +91,83 @@ contract BicycleOwnership  {
     {
         pendingBicycleCount--;
         bicycles[_bicycleId].status = Status.Rejected;
-        userBicycles[msg.sender][_bicycleId] = false;
         return true;
     }
 
     // /// @dev Function to change bicycle ownership
     // /// @param _bicycleId Identifier for bicycle
     // /// @param _newOwner new Owner address for bicycle
-    // function changeOwnership(uint _bicycleId, address _newOwner)
-    //     external
-    //     onlyOwner(_bicycleId)
-    //     returns (bool)
-    // {
-    //     require(bicycles[_bicycleId].currOwner != _newOwner);
-    //     require(bicycleOwnerChange[_bicycleId] == address(0));
-    //     bicycleOwnerChange[_bicycleId] = _newOwner;
-    //     return true;
-    // }
+    function changeOwnership(uint _bicycleId, address payable _newOwner, uint _price)
+        external
+        onlyOwner(_bicycleId)
+        returns (bool)
+    {
+        require(bicycles[_bicycleId].currOwner != _newOwner);
+        require(bicycleOwnerChange[_bicycleId].newOwner == address(0));
+        bicycles[_bicycleId].status = Status.Transfering;
+        bicycleOwnerChange[_bicycleId].newOwner = _newOwner;
+        bicycleOwnerChange[_bicycleId].price = _price;
 
-    // /// @dev Function to approve change of ownership
-    // /// @param _bicycleId Identifier for bicycle
-    // function approveChangeOwnership(uint _bicycleId)
-    //     external
-    //     returns (bool)
-    // {
-    //     require(bicycleOwnerChange[_bicycleId] == msg.sender);
-    //     bicycles[_bicycleId].currOwner = bicycleOwnerChange[_bicycleId];
-    //     bicycleOwnerChange[_bicycleId] = address(0);
-    //     return true;
-    // }
+        emit BicyclesRelated(_bicycleId, _newOwner);
+        return true;
+    }
 
+    /// @dev Function to approve change of ownership
+    /// @param _bicycleId Identifier for bicycle
+    function approveChangeOwnership(uint _bicycleId)
+        external
+    {
+        require(bicycleOwnerChange[_bicycleId].newOwner == msg.sender);
+        address payable receiver = bicycles[_bicycleId].currOwner;
+        uint price = bicycleOwnerChange[_bicycleId].price;
+        bicycles[_bicycleId].currOwner = bicycleOwnerChange[_bicycleId].newOwner;
+        bicycles[_bicycleId].status = Status.Approved;
+        bicycleOwnerChange[_bicycleId].newOwner = address(0);
+        bicycleOwnerChange[_bicycleId].price = 0;
+        receiver.transfer(price);
+    }
 
-    // /// @dev Function to change property value
-    // /// @param _bicycleId Identifier for property
-    // /// @param _newValue New Property Price
-    // function changeValue(uint _bicycleId, uint _newValue)
-    //     external
-    //     onlyOwner(_bicycleId)
-    //     returns (bool)
-    // {
-    //     require(bicycleOwnerChange[_bicycleId] == address(0));
-    //     bicycles[_bicycleId].value = _newValue;
-    //     return true;
-    // }
+    /// @dev Function to reject bicycle
+    /// @param _bicycleId Identifier for bicycle
+    function cancelChangeOwnership(uint _bicycleId)
+        external
+        returns (bool)
+    {
+        require(bicycleOwnerChange[_bicycleId].newOwner == msg.sender || bicycles[_bicycleId].currOwner == msg.sender);
+        bicycles[_bicycleId].status = Status.Approved;
+        bicycleOwnerChange[_bicycleId].newOwner = address(0);
+        bicycleOwnerChange[_bicycleId].price = 0;
+        return true;
+    }
 
-    // /// @dev Function to create property
-    // /// @param _bicycleId Identifier for property
-    // function getBicycleDetails(uint _bicycleId)
-    //     public
-    //     view
-    //     returns (
-    //         Status,
-    //         uint,
-    //         address
-    //     )
-    // {
-    //     return (
-    //         bicycles[_bicycleId].status,
-    //         bicycles[_bicycleId].value,
-    //         bicycles[_bicycleId].currOwner
-    //     );
-    // }
+    /// @dev Reports bicycle as stolen
+    /// @param _bicycleId Identifier for bicycle
+    function reportBicycleStolen(uint _bicycleId)
+        external
+        onlyOwner(_bicycleId)
+        returns (bool)
+    {
+        bicycles[_bicycleId].stolen = true;
+        return true;
+    }
 
-    // address public admin;
-    // constructor() public{
-    //     admin = msg.sender;
-    // }
+    /// @dev Unreports bicycle as stolen
+    /// @param _bicycleId Identifier for bicycle
+    function unreportBicycleStolen(uint _bicycleId)
+        external
+        onlyOwner(_bicycleId)
+        returns (bool)
+    {
+        bicycles[_bicycleId].stolen = false;
+        return true;
+    }
 
-    // enum Status {NotExist, Pending, Approved, Rejected}
-
-    // // Struct to hold all bicycle related data
-    // struct Bicycle {
-    //     Status status;
-    //     uint value;
-    //     address currOwner;
-    // }
-
-    //  // Read/write Bicycle
-    // mapping(address => Bicycle[]) public bicycles;
-    // // mapping(address => mapping(uint => Bicycle)) public bicycles;
-
-    // // Store Bicycle Count
-    // uint public bicycleCount;
-
-    // // Create instance of a new
-    // function addBike(uint _id, address owner) public {
-    //     require(msg.sender == admin, "Only admin can add new bicycles");
-    //     Bicycle memory newBicycle = Bicycle(_id);
-
-    //     // bicycles[owner][_id] = newBicycle;
-    //     bicycles[owner].push(newBicycle);
-    //     bicycleCount++;
-    //     emit addbicycleEvent(bicycleCount);
-    // }
-
-    // function getBikesOwned()public view returns( Bicycle  [] memory){
-    //     return bicycles[msg.sender];
-    // }
-
-    // function giveOwnership(uint _id, address giveToAddress) public {
-    //     require(msg.sender != giveToAddress, "Cannot give ownership to yourself");
+    function checkIfStolen(uint _bicycleId)
+        external
+        returns (bool)
+    {
+        return bicycles[_bicycleId].stolen;
+    }
 
 
-    // }
-
-    // event addbicycleEvent(uint indexed_bicycleId);
 }

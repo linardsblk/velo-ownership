@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { uniq } from 'lodash';
 import { newContextComponents } from '@drizzle/react-components';
 import { statusName } from './constants.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 const { AccountData, ContractData, ContractForm } = newContextComponents;
-const BicycleItem = ({ drizzle, drizzleState, bicycleId }) => {
+const BicycleItem = ({ drizzle, drizzleState, bicycleId, setSelectedBicycleId }) => {
   const { BicycleOwnership } = drizzleState.contracts;
   const contract = drizzle.contracts.BicycleOwnership;
 
@@ -16,14 +17,21 @@ const BicycleItem = ({ drizzle, drizzleState, bicycleId }) => {
 
   const bicycleData = BicycleOwnership.bicycles[bicycleDataKey] && BicycleOwnership.bicycles[bicycleDataKey].value;
 
+  const [bicycleOwnerChangeKey, setBicycleOwnerChangeKey] = useState(null);
+  useEffect(() => {
+    const dataKey = contract.methods['bicycleOwnerChange'].cacheCall(bicycleId);
+    setBicycleOwnerChangeKey(dataKey);
+  }, [bicycleOwnerChangeKey, contract]);
+
+  const bicycleOwnerChangeData =
+    BicycleOwnership.bicycleOwnerChange[bicycleOwnerChangeKey] &&
+    BicycleOwnership.bicycleOwnerChange[bicycleOwnerChangeKey].value;
+
   const sendTransaction = (method) => {
-    let state = drizzle.store.getState();
-    const stackId = contract.methods[method].cacheSend(bicycleId);
-    if (state.transactionStack[stackId]) {
-      const txHash = state.transactionStack[stackId];
-      return state.transactions[txHash].status;
-    }
+    contract.methods[method].cacheSend(bicycleId);
   };
+
+  const { newOwner, price } = bicycleOwnerChangeData || {};
 
   const renderActionButtons = () => {
     if (statusName[bicycleData.status] === 'Pending') {
@@ -38,9 +46,40 @@ const BicycleItem = ({ drizzle, drizzleState, bicycleId }) => {
         </>
       );
     }
+    if (statusName[bicycleData.status] === 'Approved') {
+      return (
+        <button onClick={() => setSelectedBicycleId(bicycleId)} type="button" className="btn btn-primary">
+          Details
+        </button>
+      );
+    }
+    if (statusName[bicycleData.status] === 'Transfering') {
+      if (newOwner === drizzleState.accounts[0]) {
+        return (
+          <>
+            <button onClick={() => sendTransaction('approveChangeOwnership')} type="button" className="btn btn-success">
+              Approve
+            </button>
+            <button onClick={() => sendTransaction('cancelChangeOwnership')} type="button" className="btn btn-danger">
+              Reject
+            </button>
+          </>
+        );
+      }
+      return (
+        <button onClick={() => sendTransaction('cancelChangeOwnership')} type="button" className="btn btn-danger">
+          Cancel
+        </button>
+      );
+    }
   };
 
-  if (bicycleData && statusName[bicycleData.status] !== 'Rejected' && bicycleData.currOwner === drizzleState.accounts[0]) {
+  if (
+    (bicycleData &&
+      statusName[bicycleData.status] !== 'Rejected' &&
+      bicycleData.currOwner === drizzleState.accounts[0]) ||
+    (newOwner && newOwner === drizzleState.accounts[0] && statusName[bicycleData.status] === 'Transfering')
+  ) {
     return (
       <tr>
         <th scope="row">{bicycleId}</th>
@@ -49,23 +88,25 @@ const BicycleItem = ({ drizzle, drizzleState, bicycleId }) => {
       </tr>
     );
   }
-
   return null;
 };
 
-const BikesOwned = ({ drizzle, drizzleState }) => {
+const BikesOwned = (props) => {
+  const { drizzle, drizzleState } = props;
   const { BicycleOwnership } = drizzleState.contracts;
 
-  const { abi, address} = drizzle.contracts.BicycleOwnership;
+  const { abi, address } = drizzle.contracts.BicycleOwnership || {};
   const [instance, setInstance] = useState();
   const [events, setEvents] = useState([]);
   useEffect(() => {
-    setInstance(new drizzle.web3.eth.Contract(abi, address))
-    instance && instance.getPastEvents("CreateBicycle", { fromBlock: 1}).then(setEvents);
-  }, [BicycleOwnership])
+    setInstance(new drizzle.web3.eth.Contract(abi, address));
+    instance && instance.getPastEvents('BicyclesRelated', { fromBlock: 1 }).then(setEvents);
+  }, [BicycleOwnership]);
 
   const currAccount = drizzleState.accounts[0];
-  const bicycleIds = events.filter(e => e.returnValues._owner === currAccount).map(e => e.returnValues._bicycleId)
+  const bicycleIds = uniq(
+    events.filter((e) => e.returnValues._address === currAccount).map((e) => e.returnValues._bicycleId)
+  );
 
   return (
     <div className="section">
@@ -80,7 +121,7 @@ const BikesOwned = ({ drizzle, drizzleState }) => {
           </thead>
           <tbody>
             {bicycleIds.map((e) => (
-              <BicycleItem drizzle={drizzle} drizzleState={drizzleState} bicycleId={e} key={e} />
+              <BicycleItem {...props} bicycleId={e} key={e} />
             ))}
           </tbody>
         </table>

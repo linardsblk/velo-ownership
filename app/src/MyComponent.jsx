@@ -3,13 +3,16 @@ import { newContextComponents } from '@drizzle/react-components';
 import logo from './logo.png';
 import AdminPanel from './AdminPanel.jsx';
 import BicyclesOwned from './BicyclesOwned.jsx';
+import BicyclePanel from './BicyclePanel.jsx';
 
 const { AccountData, ContractData, ContractForm } = newContextComponents;
 
 const contract = 'BicycleOwnership';
 
-const MyComponent = ({ drizzle, drizzleState }) => {
+const MyComponent = (props) => {
+  const { drizzle, drizzleState } = props;
   const [adminDataKey, setAdminDataKey] = useState(null);
+  const [selectedBicycleId, setSelectedBicycleId] = useState(null);
 
   const { BicycleOwnership } = drizzleState.contracts;
 
@@ -23,21 +26,22 @@ const MyComponent = ({ drizzle, drizzleState }) => {
     !!BicycleOwnership.creatorAdmin[adminDataKey] &&
     BicycleOwnership.creatorAdmin[adminDataKey].value === drizzleState.accounts[0];
 
+  console.log(isAdmin);
   return (
     <div className="App">
       <div>
         <img src={logo} alt="drizzle-logo" />
       </div>
-
       <div className="section">
         <h2>Active Account</h2>
-        <AccountData drizzle={drizzle} drizzleState={drizzleState} accountIndex={0} units="ether" precision={3} />
+        <AccountData {...props} accountIndex={0} units="ether" precision={3} />
       </div>
-
-      {isAdmin && <AdminPanel drizzle={drizzle} drizzleState={drizzleState} />}
-
-      <BicyclesOwned drizzle={drizzle} drizzleState={drizzleState} />
-
+      {isAdmin && <AdminPanel {...props} />}
+      {selectedBicycleId ? (
+        <BicyclePanel {...props} selectedBicycleId={selectedBicycleId} setSelectedBicycleId={setSelectedBicycleId} />
+      ) : (
+        <BicyclesOwned {...props} selectedBicycleId={selectedBicycleId} setSelectedBicycleId={setSelectedBicycleId} />
+      )}
       {/* <div className="section">
         <ContractData drizzle={drizzle} drizzleState={drizzleState} contract={contract} method="getBikesOwned" />
       </div> */}
