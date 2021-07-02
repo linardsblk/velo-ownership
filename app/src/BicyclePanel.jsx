@@ -17,6 +17,7 @@ const BicyclePanel = (props) => {
     }
     setSelectedBicycleId(null);
   };
+
   return (
     <div className="section">
       <h1>{`Bicycle ID: ${selectedBicycleId}`}</h1>

@@ -4,6 +4,7 @@ import logo from './logo.png';
 import AdminPanel from './AdminPanel.jsx';
 import BicyclesOwned from './BicyclesOwned.jsx';
 import BicyclePanel from './BicyclePanel.jsx';
+import CheckStolen from './CheckStolen.jsx';
 
 const { AccountData, ContractData, ContractForm } = newContextComponents;
 
@@ -39,7 +40,10 @@ const MyComponent = (props) => {
       {selectedBicycleId ? (
         <BicyclePanel {...props} selectedBicycleId={selectedBicycleId} setSelectedBicycleId={setSelectedBicycleId} />
       ) : (
-        <BicyclesOwned {...props} selectedBicycleId={selectedBicycleId} setSelectedBicycleId={setSelectedBicycleId} />
+        <>
+          <CheckStolen {...props} />
+          <BicyclesOwned {...props} selectedBicycleId={selectedBicycleId} setSelectedBicycleId={setSelectedBicycleId} />
+        </>
       )}
     </div>
   );

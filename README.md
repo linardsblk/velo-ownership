@@ -34,5 +34,5 @@
 
 - Install metamask browser extension
 - Login with mnemonic
-- Create a custom network with RPC URL - http://127.0.0.1:7545, Chain ID - 1337
+- Create a custom network with RPC URL - http://127.0.0.1:9545, Chain ID - 1337
 - Add generated accounts

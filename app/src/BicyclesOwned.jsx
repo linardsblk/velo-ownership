@@ -47,10 +47,22 @@ const BicycleItem = ({ drizzle, drizzleState, bicycleId, setSelectedBicycleId })
       );
     }
     if (statusName[bicycleData.status] === 'Approved') {
+      if (bicycleData.stolen) {
+        return (
+          <button onClick={() => sendTransaction('changeStolenStatus')} type="button" className="btn btn-secondary">
+            Set not stolen
+          </button>
+        );
+      }
       return (
-        <button onClick={() => setSelectedBicycleId(bicycleId)} type="button" className="btn btn-primary">
-          Details
-        </button>
+        <>
+          <button onClick={() => setSelectedBicycleId(bicycleId)} type="button" className="btn btn-primary">
+            Change owner
+          </button>
+          <button onClick={() => sendTransaction('changeStolenStatus')} type="button" className="btn btn-secondary">
+            Set stolen
+          </button>
+        </>
       );
     }
     if (statusName[bicycleData.status] === 'Transfering') {
@@ -84,6 +96,7 @@ const BicycleItem = ({ drizzle, drizzleState, bicycleId, setSelectedBicycleId })
       <tr>
         <th scope="row">{bicycleId}</th>
         <td>{statusName[bicycleData.status]}</td>
+        <td>{bicycleData.stolen ? 'Yes' : 'No'}</td>
         <td>{renderActionButtons()}</td>
       </tr>
     );
@@ -116,6 +129,7 @@ const BikesOwned = (props) => {
             <tr>
               <th scope="col">ID</th>
               <th scope="col">Status</th>
+              <th scope="col">Stolen</th>
               <th scope="col">Action</th>
             </tr>
           </thead>

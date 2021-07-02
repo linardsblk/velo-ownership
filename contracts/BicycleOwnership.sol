@@ -41,6 +41,11 @@ contract BicycleOwnership  {
         _;
     }
 
+    modifier statusApproved(uint _bicycleId) {
+        require(bicycles[_bicycleId].status == Status.Approved);
+        _;
+    }
+
     // Initializing the Contract.
     constructor() public {
         creatorAdmin = msg.sender;
@@ -100,6 +105,7 @@ contract BicycleOwnership  {
     function changeOwnership(uint _bicycleId, address payable _newOwner, uint _price)
         external
         onlyOwner(_bicycleId)
+        statusApproved(_bicycleId)
         returns (bool)
     {
         require(bicycles[_bicycleId].currOwner != _newOwner);
@@ -116,10 +122,11 @@ contract BicycleOwnership  {
     /// @param _bicycleId Identifier for bicycle
     function approveChangeOwnership(uint _bicycleId)
         external
+        payable
     {
         require(bicycleOwnerChange[_bicycleId].newOwner == msg.sender);
         address payable receiver = bicycles[_bicycleId].currOwner;
-        uint price = bicycleOwnerChange[_bicycleId].price;
+        uint price = bicycleOwnerChange[_bicycleId].price * 1000000000000000000;
         bicycles[_bicycleId].currOwner = bicycleOwnerChange[_bicycleId].newOwner;
         bicycles[_bicycleId].status = Status.Approved;
         bicycleOwnerChange[_bicycleId].newOwner = address(0);
@@ -142,25 +149,16 @@ contract BicycleOwnership  {
 
     /// @dev Reports bicycle as stolen
     /// @param _bicycleId Identifier for bicycle
-    function reportBicycleStolen(uint _bicycleId)
+    function changeStolenStatus(uint _bicycleId)
         external
         onlyOwner(_bicycleId)
-        returns (bool)
-    {
-        bicycles[_bicycleId].stolen = true;
-        return true;
-    }
-
-    /// @dev Unreports bicycle as stolen
-    /// @param _bicycleId Identifier for bicycle
-    function unreportBicycleStolen(uint _bicycleId)
-        external
-        onlyOwner(_bicycleId)
+        statusApproved(_bicycleId)
         returns (bool)
     {
         bicycles[_bicycleId].stolen = false;
         return true;
     }
+
 
     function checkIfStolen(uint _bicycleId)
         external

@@ -1,6 +1,5 @@
 import React from 'react';
 import { newContextComponents } from '@drizzle/react-components';
-import logo from './logo.png';
 
 const contract = 'BicycleOwnership';
 
